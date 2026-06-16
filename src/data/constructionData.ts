@@ -100,15 +100,23 @@ export function getPlannedProgress(floorId: number, dayIndex: number): number {
   return Math.round(planned)
 }
 
+export function getPlannedDayForProgress(floorId: number, progress: number): number {
+  const floorRatio = floorId / TOTAL_FLOORS
+  const timeRatio = progress / 250 + (floorRatio - 0.06) * 0.8
+  return timeRatio * (PLAN_DURATION - 1)
+}
+
 export function getProgressDeviation(floor: FloorData, dayIndex: number): number {
-  const actual = getFloorAvgProgress(floor)
-  const planned = getPlannedProgress(floor.id, dayIndex)
-  const progressDiff = actual - planned
+  const actualProgress = getFloorAvgProgress(floor)
+  const plannedProgress = getPlannedProgress(floor.id, dayIndex)
 
-  if (Math.abs(progressDiff) < 1) return 0
+  if (actualProgress === 0 && plannedProgress === 0) return 0
+  if (actualProgress >= 100 && plannedProgress >= 100) return 0
 
-  const daysPerPercent = PLAN_DURATION / 100
-  return Math.round(progressDiff * daysPerPercent)
+  const plannedDay = getPlannedDayForProgress(floor.id, actualProgress)
+  const deviation = plannedDay - dayIndex
+
+  return Math.round(deviation)
 }
 
 export function isBehindSchedule(floor: FloorData, dayIndex: number): boolean {
