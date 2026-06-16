@@ -92,3 +92,25 @@ export function getOverallProgress(snapshot: DaySnapshot): number {
   const total = snapshot.floors.reduce((s, f) => s + getFloorAvgProgress(f), 0)
   return Math.round(total / snapshot.floors.length)
 }
+
+export function getPlannedProgress(floorId: number, dayIndex: number): number {
+  const floorRatio = floorId / TOTAL_FLOORS
+  const timeRatio = dayIndex / (PLAN_DURATION - 1)
+  const planned = Math.max(0, Math.min(100, (timeRatio - (floorRatio - 0.06) * 0.8) * 250))
+  return Math.round(planned)
+}
+
+export function getProgressDeviation(floor: FloorData, dayIndex: number): number {
+  const actual = getFloorAvgProgress(floor)
+  const planned = getPlannedProgress(floor.id, dayIndex)
+  const progressDiff = actual - planned
+
+  if (Math.abs(progressDiff) < 1) return 0
+
+  const daysPerPercent = PLAN_DURATION / 100
+  return Math.round(progressDiff * daysPerPercent)
+}
+
+export function isBehindSchedule(floor: FloorData, dayIndex: number): boolean {
+  return getProgressDeviation(floor, dayIndex) < 0
+}

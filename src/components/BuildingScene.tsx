@@ -2,7 +2,7 @@ import React, { useRef, useState, useCallback, useMemo } from 'react'
 import * as THREE from 'three'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls, Environment } from '@react-three/drei'
-import { DaySnapshot, getFloorStatus, getFloorAvgProgress, FloorData } from '../data/constructionData'
+import { DaySnapshot, getFloorStatus, getFloorAvgProgress, FloorData, isBehindSchedule } from '../data/constructionData'
 
 // ---------- 常量 ----------
 const FLOOR_W = 6
@@ -44,6 +44,7 @@ interface FloorMeshProps {
   floor: FloorData
   index: number
   snapshot: DaySnapshot
+  dayIndex: number
   hovered: number | null
   setHovered: (v: number | null) => void
   setTooltipData: (v: { x: number; y: number; floor: FloorData } | null) => void
@@ -51,12 +52,18 @@ interface FloorMeshProps {
   cameraRef: React.MutableRefObject<THREE.PerspectiveCamera | null>
 }
 
-function FloorMesh({ floor, index, snapshot, hovered, setHovered, setTooltipData, flyTo, cameraRef }: FloorMeshProps) {
+function FloorMesh({ floor, index, snapshot, dayIndex, hovered, setHovered, setTooltipData, flyTo, cameraRef }: FloorMeshProps) {
   const meshRef = useRef<THREE.Mesh>(null!)
   const status = getFloorStatus(floor)
   const color = FLOOR_COLORS[status]
   const isHovered = hovered === index
+  const isBehind = isBehindSchedule(floor, dayIndex)
   const y = index * (FLOOR_H + GAP) + FLOOR_H / 2
+
+  const borderGeo = useMemo(() => {
+    const geo = new THREE.EdgesGeometry(new THREE.BoxGeometry(FLOOR_W + 0.15, FLOOR_H + 0.15, FLOOR_D + 0.15))
+    return geo
+  }, [])
 
   useFrame(() => {
     if (!meshRef.current) return
@@ -89,6 +96,11 @@ function FloorMesh({ floor, index, snapshot, hovered, setHovered, setTooltipData
 
   return (
     <group position={[0, y, 0]}>
+      {isBehind && (
+        <lineSegments geometry={borderGeo}>
+          <lineBasicMaterial color="#ef4444" linewidth={3} transparent opacity={0.9} />
+        </lineSegments>
+      )}
       <mesh
         ref={meshRef}
         onPointerOver={handlePointerOver}
@@ -160,13 +172,14 @@ function GridFloor() {
 // ---------- 场景主体 ----------
 interface SceneProps {
   snapshot: DaySnapshot
+  dayIndex: number
   hovered: number | null
   setHovered: (v: number | null) => void
   setTooltipData: (v: { x: number; y: number; floor: FloorData } | null) => void
   focusFloor: number | null
 }
 
-function Scene({ snapshot, hovered, setHovered, setTooltipData, focusFloor }: SceneProps) {
+function Scene({ snapshot, dayIndex, hovered, setHovered, setTooltipData, focusFloor }: SceneProps) {
   const flyTo = useFlyCamera()
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null)
 
@@ -204,6 +217,7 @@ function Scene({ snapshot, hovered, setHovered, setTooltipData, focusFloor }: Sc
           floor={floor}
           index={i}
           snapshot={snapshot}
+          dayIndex={dayIndex}
           hovered={hovered}
           setHovered={setHovered}
           setTooltipData={setTooltipData}

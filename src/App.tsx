@@ -29,6 +29,7 @@ const App: React.FC = () => {
       <div className="canvas-wrap">
         <BuildingScene
           snapshot={snapshot}
+          dayIndex={dayIndex}
           hovered={hoveredFloor}
           setHovered={setHoveredFloor}
           setTooltipData={setTooltipData}
@@ -42,6 +43,7 @@ const App: React.FC = () => {
       {/* 右侧楼层列表 */}
       <FloorPanel
         floors={snapshot.floors}
+        dayIndex={dayIndex}
         activeFloor={focusFloor}
         onSelect={handleFloorSelect}
       />

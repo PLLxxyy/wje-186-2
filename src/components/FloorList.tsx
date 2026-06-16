@@ -1,8 +1,9 @@
 import React from 'react'
-import { getFloorStatus, getFloorAvgProgress, FloorData } from '../data/constructionData'
+import { getFloorStatus, getFloorAvgProgress, FloorData, getProgressDeviation, isBehindSchedule } from '../data/constructionData'
 
 interface Props {
   floors: FloorData[]
+  dayIndex: number
   activeFloor: number | null
   onSelect: (floorIndex: number) => void
 }
@@ -25,18 +26,20 @@ function getBarColor(progress: number): string {
   return '#475569'
 }
 
-const FloorPanel: React.FC<Props> = ({ floors, activeFloor, onSelect }) => {
+const FloorPanel: React.FC<Props> = ({ floors, dayIndex, activeFloor, onSelect }) => {
   return (
     <div className="floor-panel">
       {floors.map((floor, i) => {
         const status = getFloorStatus(floor)
         const avg = getFloorAvgProgress(floor)
         const isActive = activeFloor === i
+        const deviation = getProgressDeviation(floor, dayIndex)
+        const behind = isBehindSchedule(floor, dayIndex)
 
         return (
           <div
             key={floor.id}
-            className={`floor-card${isActive ? ' active' : ''}`}
+            className={`floor-card${isActive ? ' active' : ''}${behind ? ' behind' : ''}`}
             onClick={() => onSelect(i)}
           >
             <div className="floor-card-header">
@@ -46,6 +49,18 @@ const FloorPanel: React.FC<Props> = ({ floors, activeFloor, onSelect }) => {
               </span>
               <span className={`floor-status ${status}`}>
                 {STATUS_LABEL[status]} {avg}%
+                {deviation !== 0 && (
+                  <span
+                    style={{
+                      marginLeft: 6,
+                      fontSize: 11,
+                      color: deviation < 0 ? '#ef4444' : '#22c55e',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {deviation > 0 ? '+' : ''}{deviation}天
+                  </span>
+                )}
               </span>
             </div>
             {floor.tasks.map((task) => (
