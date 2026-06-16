@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>建筑施工3D进度管理系统</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body, #root {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+      background: #0a0e1a;
+      color: #e0e6f0;
+    }
+
+    .app-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ---- 顶部数据栏 ---- */
+    .hud-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 72px;
+      background: linear-gradient(180deg, rgba(10, 14, 26, 0.95) 0%, rgba(10, 14, 26, 0.7) 100%);
+      backdrop-filter: blur(12px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 48px;
+      z-index: 10;
+      border-bottom: 1px solid rgba(56, 189, 248, 0.15);
+    }
+
+    .hud-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .hud-label {
+      font-size: 11px;
+      color: #64748b;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .hud-value {
+      font-size: 22px;
+      font-weight: 700;
+      color: #38bdf8;
+      text-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+    }
+
+    .hud-value.green {
+      color: #4ade80;
+      text-shadow: 0 0 12px rgba(74, 222, 128, 0.4);
+    }
+
+    .hud-value.amber {
+      color: #fbbf24;
+      text-shadow: 0 0 12px rgba(251, 191, 36, 0.4);
+    }
+
+    /* ---- 3D 画布 ---- */
+    .canvas-wrap {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+    }
+
+    /* ---- 右侧楼层列表 ---- */
+    .floor-panel {
+      position: absolute;
+      top: 84px;
+      right: 16px;
+      width: 280px;
+      max-height: calc(100vh - 200px);
+      overflow-y: auto;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .floor-panel::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .floor-panel::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .floor-panel::-webkit-scrollbar-thumb {
+      background: rgba(56, 189, 248, 0.3);
+      border-radius: 2px;
+    }
+
+    .floor-card {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(56, 189, 248, 0.12);
+      border-radius: 10px;
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+
+    .floor-card:hover {
+      border-color: rgba(56, 189, 248, 0.4);
+      background: rgba(15, 23, 42, 0.95);
+      transform: translateX(-4px);
+    }
+
+    .floor-card.active {
+      border-color: #38bdf8;
+      box-shadow: 0 0 20px rgba(56, 189, 248, 0.15);
+    }
+
+    .floor-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+
+    .floor-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #f1f5f9;
+    }
+
+    .floor-status {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 500;
+    }
+
+    .floor-status.completed {
+      background: rgba(74, 222, 128, 0.15);
+      color: #4ade80;
+    }
+
+    .floor-status.in-progress {
+      background: rgba(251, 191, 36, 0.15);
+      color: #fbbf24;
+    }
+
+    .floor-status.pending {
+      background: rgba(148, 163, 184, 0.15);
+      color: #94a3b8;
+    }
+
+    .task-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 5px;
+      font-size: 12px;
+    }
+
+    .task-name {
+      color: #94a3b8;
+      width: 56px;
+      flex-shrink: 0;
+    }
+
+    .task-bar-bg {
+      flex: 1;
+      height: 6px;
+      background: rgba(51, 65, 85, 0.6);
+      border-radius: 3px;
+      margin: 0 8px;
+      overflow: hidden;
+    }
+
+    .task-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.4s ease;
+    }
+
+    .task-pct {
+      width: 36px;
+      text-align: right;
+      color: #cbd5e1;
+      font-size: 11px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ---- 底部时间轴 ---- */
+    .timeline-bar {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(80vw, 720px);
+      z-index: 10;
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(56, 189, 248, 0.15);
+      border-radius: 14px;
+      padding: 16px 24px;
+    }
+
+    .timeline-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .timeline-title {
+      font-size: 12px;
+      color: #64748b;
+      letter-spacing: 1px;
+    }
+
+    .timeline-date {
+      font-size: 14px;
+      font-weight: 600;
+      color: #38bdf8;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .timeline-dates {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: #475569;
+      margin-bottom: 4px;
+      padding: 0 2px;
+    }
+
+    .timeline-slider {
+      width: 100%;
+      height: 6px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: linear-gradient(90deg, #38bdf8 0%, #1e3a5f 100%);
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .timeline-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      background: #38bdf8;
+      border-radius: 50%;
+      border: 3px solid #0f172a;
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.5);
+      cursor: grab;
+      transition: transform 0.15s ease;
+    }
+
+    .timeline-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    .timeline-slider::-webkit-slider-thumb:active {
+      cursor: grabbing;
+    }
+
+    /* ---- 悬浮提示 ---- */
+    .tooltip-3d {
+      position: absolute;
+      pointer-events: none;
+      z-index: 20;
+      background: rgba(15, 23, 42, 0.94);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      border-radius: 10px;
+      padding: 12px 16px;
+      min-width: 200px;
+      transform: translate(-50%, -120%);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    .tooltip-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #f1f5f9;
+      margin-bottom: 8px;
+      border-bottom: 1px solid rgba(56, 189, 248, 0.15);
+      padding-bottom: 6px;
+    }
+
+    .tooltip-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      margin-top: 4px;
+    }
+
+    .tooltip-label {
+      color: #94a3b8;
+    }
+
+    .tooltip-val {
+      font-weight: 600;
+      color: #e2e8f0;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+</html>
